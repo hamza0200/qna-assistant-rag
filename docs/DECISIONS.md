@@ -1,6 +1,33 @@
 # Architecture Decision Log
 
-Each entry: **Context / Decision / Alternatives considered / Trade-offs**. Entries are appended as the project is built.
+Each entry: **Context / Decision / Alternatives considered / Trade-offs**. Entries were appended in the order the decisions were made while building.
+
+- [ADR-001 — Repository root is the project root](#adr-001--repository-root-is-the-project-root)
+- [ADR-002 — Configurable host ports](#adr-002--configurable-host-ports)
+- [ADR-003 — `bcrypt` directly instead of `passlib`](#adr-003--bcrypt-directly-instead-of-passlib)
+- [ADR-004 — Implied driver/adapter dependencies](#adr-004--implied-driveradapter-dependencies)
+- [ADR-005 — Tailwind CSS v4 (CSS-first config)](#adr-005--tailwind-css-v4-css-first-config)
+- [ADR-006 — Next.js standalone output and build-time API URL](#adr-006--nextjs-standalone-output-and-build-time-api-url)
+- [ADR-007 — Chunking: ~800 chars, 150 overlap, recursive boundaries, never across pages](#adr-007--chunking-800-chars-150-overlap-recursive-boundaries-never-across-pages)
+- [ADR-008 — Strip running headers; embed the document title with each chunk](#adr-008--strip-running-headers-embed-the-document-title-with-each-chunk)
+- [ADR-009 — FastAPI BackgroundTasks for ingestion (not Celery/Redis)](#adr-009--fastapi-backgroundtasks-for-ingestion-not-celeryredis)
+- [ADR-010 — Upload validation: extension + MIME + magic bytes + size, UUID storage names](#adr-010--upload-validation-extension--mime--magic-bytes--size-uuid-storage-names)
+- [ADR-011 — Server-Sent Events over `fetch` (not WebSockets, not EventSource)](#adr-011--server-sent-events-over-fetch-not-websockets-not-eventsource)
+- [ADR-012 — Provider-agnostic LLM wrapper; Anthropic default with effort and refusal fallback](#adr-012--provider-agnostic-llm-wrapper-anthropic-default-with-effort-and-refusal-fallback)
+- [ADR-013 — Citations: numbered sources, only the ones actually referenced](#adr-013--citations-numbered-sources-only-the-ones-actually-referenced)
+- [ADR-014 — Follow-ups: chat history in the prompt + dual retrieval](#adr-014--follow-ups-chat-history-in-the-prompt--dual-retrieval)
+- [ADR-015 — Offline `fake` LLM provider for development and CI](#adr-015--offline-fake-llm-provider-for-development-and-ci)
+- [ADR-016 — `react-markdown` + `remark-gfm` for answers](#adr-016--react-markdown--remark-gfm-for-answers)
+- [ADR-017 — JWT in memory + localStorage (not an httpOnly cookie)](#adr-017--jwt-in-memory--localstorage-not-an-httponly-cookie)
+- [ADR-018 — Rate limiting per user (authenticated) or per IP (anonymous), in memory](#adr-018--rate-limiting-per-user-authenticated-or-per-ip-anonymous-in-memory)
+- [ADR-019 — Security headers and a CSP on both apps](#adr-019--security-headers-and-a-csp-on-both-apps)
+- [ADR-020 — Similarity threshold `MIN_SIMILARITY = 0.45`, `TOP_K = 5` (tuned with the eval)](#adr-020--similarity-threshold-minsimilarity--045-topk--5-tuned-with-the-eval)
+- [ADR-021 — Eval design: retrieval in-process, answers over HTTP, string-match grading](#adr-021--eval-design-retrieval-in-process-answers-over-http-string-match-grading)
+- [ADR-022 — FastAPI (Python) for the backend, not Node/NestJS](#adr-022--fastapi-python-for-the-backend-not-nodenestjs)
+- [ADR-023 — Next.js App Router with client components for the app screens](#adr-023--nextjs-app-router-with-client-components-for-the-app-screens)
+- [ADR-024 — pgvector inside Postgres, not a dedicated vector database](#adr-024--pgvector-inside-postgres-not-a-dedicated-vector-database)
+- [ADR-025 — Local FastEmbed embeddings (`bge-small-en-v1.5`), not a hosted embeddings API](#adr-025--local-fastembed-embeddings-bge-small-en-v15-not-a-hosted-embeddings-api)
+- [ADR-026 — Retrieval-Augmented Generation, not fine-tuning](#adr-026--retrieval-augmented-generation-not-fine-tuning)
 
 ---
 
@@ -154,3 +181,38 @@ The distributions overlap, so no threshold separates them. 0.45 keeps every answ
 **Decision.** Retrieval is scored by calling `rag.retrieve_for_turn` (the chat route's own code path, including follow-up handling) as the demo user — cheap, deterministic, no API key. Answers are scored by streaming real `/api/chat` responses (so the whole system is under test) and checking key facts case-insensitively (word boundaries for short facts, thousands separators optional), refusal phrasing for refusal questions, and forbidden strings plus an "is USD 5" pattern for the injection question. The scorer has its own unit tests (`backend/tests/test_eval_scoring.py`), including "every reference answer passes its own scoring".
 **Alternatives considered.** LLM-as-judge (better at paraphrase, but costs money, is itself non-deterministic and needs its own validation); exact-match answers.
 **Trade-offs.** String matching can't credit a correct paraphrase ("two hours" vs "2 hours") and can be fooled by an answer that mentions a fact while getting it wrong; it is transparent and free. One quirk found: Q13's reference answer never literally contains its key fact "Bahrain".
+
+## ADR-022 — FastAPI (Python) for the backend, not Node/NestJS
+
+**Context.** The backend is mostly AI plumbing: PDF parsing, embeddings, vector search, LLM streaming.
+**Decision.** Python 3.12 + FastAPI (async), Pydantic v2, SQLAlchemy 2 async.
+**Alternatives considered.** Node with NestJS or Express (one language across the stack, excellent async I/O); Django (batteries included, but async support is partial).
+**Trade-offs.** Python has the richest AI/ML ecosystem (local ONNX embeddings, pypdf, every LLM SDK ships Python first), and FastAPI gives typed request validation and OpenAPI docs for free. The cost is two languages in the repo and Python's GIL for CPU-bound work, which we push to threads (native code releases the GIL) or would move to worker processes at scale. NestJS would be the pick for a team that is TypeScript-only or where AI is a small part of the system.
+
+## ADR-023 — Next.js App Router with client components for the app screens
+
+**Context.** The spec fixes Next.js (App Router) + TypeScript. The screens are behind login and highly interactive (streaming chat, drag-and-drop).
+**Decision.** App Router for routing, layouts and fonts; the authenticated pages are client components because the token lives in the browser and the UI is stateful. Server rendering is used for the root layout and static shell.
+**Alternatives considered.** Pages Router; a plain Vite SPA; server components fetching data with a cookie-based session.
+**Trade-offs.** With a localStorage token, server components can't fetch user data, so we don't benefit from RSC data fetching here. Moving auth to an httpOnly cookie would let server components render document lists and conversations on the server.
+
+## ADR-024 — pgvector inside Postgres, not a dedicated vector database
+
+**Context.** We need vector similarity search filtered by owner and document, alongside ordinary relational data.
+**Decision.** Postgres 16 + pgvector with an HNSW index (`vector_cosine_ops`) on `chunks.embedding`.
+**Alternatives considered.** Pinecone (managed, serverless), Qdrant/Weaviate/Milvus (self-hosted or managed, purpose-built), FAISS in process.
+**Trade-offs.** One database means one backup/restore story, transactions that cover chunks and document status together, ownership filters expressed as normal SQL joins (hard to get wrong), and no data sync between two stores. Dedicated engines win at very large scale (hundreds of millions of vectors, sharding, quantization, advanced hybrid/filtered search, multi-tenancy features). Move when the vector workload needs to scale independently of the relational one, or recall/latency with filters degrades.
+
+## ADR-025 — Local FastEmbed embeddings (`bge-small-en-v1.5`), not a hosted embeddings API
+
+**Context.** Every chunk and every query needs an embedding.
+**Decision.** FastEmbed (ONNX Runtime, CPU) with `BAAI/bge-small-en-v1.5` (384 dimensions), baked into the Docker image, behind an `EmbeddingProvider` interface.
+**Alternatives considered.** OpenAI `text-embedding-3-small/large`, Voyage, Cohere; larger open models (bge-base/large, e5, gte).
+**Trade-offs.** Free, private (documents never leave the server for embedding), no API key, ~10 ms per query on CPU, and small vectors (384 floats = 1.5 KB per chunk). Hosted models are generally more accurate, multilingual and have longer input windows, but add cost, latency, a network dependency and data-sharing questions. Switching is one class plus a migration (new dimension) and a full re-embed of existing chunks.
+
+## ADR-026 — Retrieval-Augmented Generation, not fine-tuning
+
+**Context.** The assistant must answer from each user's private, changing documents, with citations.
+**Decision.** RAG: retrieve relevant chunks at question time and put them in the prompt.
+**Alternatives considered.** Fine-tuning a model on the documents; long-context "stuff every document into the prompt".
+**Trade-offs.** RAG updates instantly when documents change (no retraining), keeps each user's data separate by construction, and supports citations because we know exactly which text the answer was based on. Fine-tuning teaches style and format well but is poor at memorising facts reliably, can't cite, is expensive to redo per change, and would mix users' data into one model. Long-context stuffing works for a handful of small documents but costs more per question and scales poorly; RAG keeps the prompt to ~5 chunks.

@@ -60,3 +60,8 @@
 - **Eval split**: retrieval measured in-process (free, deterministic, no LLM); answers measured end-to-end through the HTTP API (tests the real system, costs tokens).
 - **Seed via the public API**, not direct DB inserts: exercises the same validation and ingestion path as users, and is idempotent (skips existing user/docs).
 - **asyncio gotcha**: a pooled async engine is bound to the event loop that created its connections; calling `asyncio.run()` repeatedly requires `engine.dispose()` between runs.
+
+## Phase 7 — Docs + CI
+- **CI mirrors local commands**: the GitHub Actions workflow runs the same lint/test/build steps as `make lint`/`make test`, against a real `pgvector/pgvector:pg16` service container, plus `alembic upgrade head && alembic check` to catch models drifting from migrations.
+- **Fresh-clone test**: the README's quick start was verified by cloning the repo into an empty directory and following only the README (different ports, `LLM_PROVIDER=fake`) — "works on my machine" is not a checkpoint.
+- **Docs for different readers**: README (what/how to run), ARCHITECTURE (how it works, with file paths), DECISIONS (why, with trade-offs), API (contract).
