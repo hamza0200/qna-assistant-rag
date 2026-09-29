@@ -2,6 +2,9 @@
 .DEFAULT_GOAL := help
 COMPOSE := docker compose
 BACKEND := $(COMPOSE) exec backend
+# Frontend checks run in a Node container so only Docker is required. node_modules
+# lives in an anonymous volume so Linux binaries never clobber a host install.
+NODE := docker run --rm -v "$(CURDIR)/frontend:/app" -v /app/node_modules -w /app node:24-alpine sh -c
 
 .PHONY: help up down logs migrate seed test test-backend test-frontend lint eval study-guide lockfile
 
@@ -29,14 +32,14 @@ test: test-backend test-frontend ## Run all tests
 test-backend: ## Run backend tests (inside the backend container)
 	$(BACKEND) pytest -q -p no:cacheprovider
 
-test-frontend: ## Run frontend tests
-	cd frontend && npm test
+test-frontend: ## Run frontend tests (in a Node container)
+	$(NODE) "npm ci --no-audit --no-fund --loglevel=error && npm test"
 
 lint: ## Lint backend (ruff, black) and frontend (eslint, prettier)
 	$(BACKEND) ruff check --no-cache app tests alembic
 	$(BACKEND) ruff check --no-cache --config pyproject.toml /scripts
 	$(BACKEND) black --check --config pyproject.toml app tests alembic /scripts
-	cd frontend && npm run lint && npm run format:check
+	$(NODE) "npm ci --no-audit --no-fund --loglevel=error && npm run lint && npm run format:check && npx tsc --noEmit"
 
 eval: ## Run the evaluation set against the running API and write docs/EVAL_RESULTS.md
 	$(BACKEND) python /scripts/eval.py
