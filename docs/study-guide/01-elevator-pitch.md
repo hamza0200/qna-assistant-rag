@@ -12,7 +12,7 @@ A pattern that works in interviews: **answer in one sentence, then go one level 
 >
 > Under the hood it's retrieval-augmented generation. When a PDF is uploaded, a FastAPI backend extracts the text page by page, splits it into overlapping chunks, turns each chunk into a vector with a local embedding model, and stores it in Postgres with pgvector. When you ask a question, I embed the question, find the closest chunks *that belong to you*, and give only those to Claude with strict instructions: answer only from these sources, cite them, and say "I couldn't find it" otherwise. If nothing relevant is found, I don't call the LLM at all.
 >
-> The frontend is Next.js with TypeScript; the stream is Server-Sent Events read with `fetch` so I can send the auth header and support a Stop button. I hardened it the way I would for production: per-user data isolation with tests for IDOR, upload validation by magic bytes, rate limits, and defences against prompt injection — one of the test documents contains a planted "ignore all previous instructions" attack. Everything runs with `make up`, has 111 automated tests, CI, and an evaluation set where retrieval finds the right source for 21 of 21 questions.
+> The frontend is Next.js with TypeScript; the stream is Server-Sent Events read with `fetch` so I can send the auth header and support a Stop button. I hardened it the way I would for production: per-user data isolation with tests for IDOR, upload validation by magic bytes, rate limits, and defences against prompt injection — one of the test documents contains a planted "ignore all previous instructions" attack. Everything runs with `make up`, has 113 automated tests, CI, and an evaluation set where retrieval finds the right source for 21 of 21 questions.
 
 ## The 3-minute version
 
@@ -36,6 +36,6 @@ A pattern that works in interviews: **answer in one sentence, then go one level 
 | History | last 6 messages |
 | Context budget | ≤ 12,000 characters of sources; answer `max_tokens` 1,024 |
 | Rate limits | chat 20/min/user, upload 10/min/user, login 5/min/IP |
-| Tests | 98 backend + 13 frontend |
+| Tests | 100 backend + 13 frontend |
 | Eval | 22 questions; retrieval hit-rate 21/21 (100%) |
 | Sample corpus | 5 PDFs, 12 pages → 32 chunks, ingested in ~0.5 s |

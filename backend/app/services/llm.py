@@ -126,8 +126,16 @@ class AnthropicProvider(LLMProvider):
             raise LLMError(
                 "LLM_NOT_CONFIGURED", "The AI provider rejected the server's credentials."
             ) from exc
+        except anthropic.NotFoundError as exc:  # usually a wrong LLM_MODEL name
+            logger.error("llm_model_not_found", extra={"model": self.settings.llm_model})
+            raise LLMError("LLM_NOT_CONFIGURED", "The configured AI model isn't available.") from exc
         except anthropic.BadRequestError as exc:
             logger.error("llm_bad_request", extra={"detail": str(exc)[:500]})
+            if "credit balance" in str(exc).lower():
+                raise LLMError(
+                    "LLM_BILLING",
+                    "The AI provider account has run out of credits. Ask the administrator to top up.",
+                ) from exc
             raise LLMError("LLM_BAD_REQUEST", "The AI provider rejected the request.") from exc
         except (anthropic.APIConnectionError, anthropic.APIStatusError) as exc:
             raise LLMError("LLM_UNAVAILABLE", "The AI provider is unavailable. Please try again.") from exc

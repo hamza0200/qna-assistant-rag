@@ -24,3 +24,4 @@ coverage/
 
 # Study guide build artifacts (the final PDF itself is committed)
 docs/study-guide/_build/
+docs/study-guide-short/_build/

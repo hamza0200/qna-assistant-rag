@@ -145,6 +145,18 @@ _REQ = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
             anthropic.InternalServerError("boom", response=httpx2.Response(500, request=_REQ), body=None),
             "LLM_UNAVAILABLE",
         ),
+        (
+            anthropic.BadRequestError(
+                "Your credit balance is too low to access the Anthropic API.",
+                response=httpx2.Response(400, request=_REQ),
+                body=None,
+            ),
+            "LLM_BILLING",
+        ),
+        (
+            anthropic.NotFoundError("model: nope", response=httpx2.Response(404, request=_REQ), body=None),
+            "LLM_NOT_CONFIGURED",
+        ),
     ],
 )
 async def test_anthropic_errors_are_normalized(monkeypatch, error: Exception, code: str) -> None:

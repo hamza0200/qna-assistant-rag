@@ -9,7 +9,7 @@
 | **End-to-end** | the running system through the UI | seconds | headless Chrome scripts during development: register/login, upload + polling, chat streaming, citations, Stop, reload |
 | **Evaluation** | quality of AI output on a labelled set | minutes, costs tokens | `scripts/eval.py` on 22 questions |
 
-Many fast tests at the bottom, few slow ones at the top. **111 automated tests**: 98 backend (`pytest`) + 13 frontend (`vitest` + Testing Library), all running in CI.
+Many fast tests at the bottom, few slow ones at the top. **113 automated tests**: 100 backend (`pytest`) + 13 frontend (`vitest` + Testing Library), all running in CI.
 
 ## Mocking the LLM
 

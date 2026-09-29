@@ -1,11 +1,14 @@
-"""Build docs/Interview-Study-Guide.pdf from the Markdown sources in docs/study-guide/.
+"""Build the interview study guides from Markdown sources.
+
+- Full edition:  docs/study-guide/*.md        -> docs/Interview-Study-Guide.pdf
+- Short edition: docs/study-guide-short/*.md  -> docs/Interview-Study-Guide-Short.pdf
 
 Pipeline: Graphviz diagrams (.dot -> .svg) -> Markdown -> HTML (with a title page,
 a table of contents and print CSS) -> PDF via WeasyPrint.
 
 Usage:
-    make study-guide                       # builds inside a tools container (only Docker needed)
-    python scripts/build_study_guide.py --preview 1,2,5   # also render those pages to PNG
+    make study-guide                                        # both editions, in a tools container
+    make study-guide ARGS="--edition short --preview 1,2"   # one edition + PNG previews of pages
 
 Section files are named NN-title.md and included in order; notes.md (collected
 while building the app) is appended as an appendix.
@@ -23,9 +26,23 @@ import markdown
 from weasyprint import HTML
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "docs" / "study-guide"
-BUILD = SRC / "_build"
-OUT = ROOT / "docs" / "Interview-Study-Guide.pdf"
+DIAGRAMS = ROOT / "docs" / "study-guide" / "diagrams"  # shared by both editions
+
+# edition -> (source folder, output PDF, title-page subtitle)
+EDITIONS = {
+    "full": (
+        ROOT / "docs" / "study-guide",
+        ROOT / "docs" / "Interview-Study-Guide.pdf",
+        "How the project works, why every decision was made, and the fundamentals behind it — "
+        "AI/LLMs, backend, frontend, databases, security, scaling, testing and DevOps.",
+    ),
+    "short": (
+        ROOT / "docs" / "study-guide-short",
+        ROOT / "docs" / "Interview-Study-Guide-Short.pdf",
+        "The project, the decisions, the essential concepts and the most likely questions — "
+        "everything you need, readable in a day.",
+    ),
+}
 
 CSS = """
 @page {
@@ -95,11 +112,11 @@ figure { margin: 6pt 0 10pt; page-break-inside: avoid; }
 """
 
 
-def render_diagrams() -> None:
-    """Graphviz .dot -> .svg into _build/diagrams (so Markdown can reference diagrams/x.svg)."""
-    out_dir = BUILD / "diagrams"
+def render_diagrams(build_dir: Path) -> None:
+    """Graphviz .dot -> .svg into <build>/diagrams (so Markdown can reference diagrams/x.svg)."""
+    out_dir = build_dir / "diagrams"
     out_dir.mkdir(parents=True, exist_ok=True)
-    for dot in sorted((SRC / "diagrams").glob("*.dot")):
+    for dot in sorted(DIAGRAMS.glob("*.dot")):
         target = out_dir / f"{dot.stem}.svg"
         subprocess.run(["dot", "-Tsvg", str(dot), "-o", str(target)], check=True)  # noqa: S603
         print(f"  diagram {dot.name} -> {target.relative_to(ROOT)}")
@@ -135,10 +152,14 @@ def add_heading_ids(body: str, used: set[str]) -> tuple[str, list[tuple[int, str
     return re.sub(r"<h([12])>(.*?)</h\1>", repl, body), headings
 
 
-def build(preview_pages: list[int]) -> None:
-    render_diagrams()
-    sections = sorted(p for p in SRC.glob("[0-9][0-9]-*.md"))
-    notes = SRC / "notes.md"
+def build(edition: str, preview_pages: list[int]) -> None:
+    src, out, subtitle = EDITIONS[edition]
+    build_dir = src / "_build"
+    label = "Interview Study Guide" + (" — One-Day Edition" if edition == "short" else "")
+    print(f"Building the {edition} edition from {src.relative_to(ROOT)}")
+    render_diagrams(build_dir)
+    sections = sorted(p for p in src.glob("[0-9][0-9]-*.md"))
+    notes = src / "notes.md"
     parts = [p.read_text() for p in sections]
     if notes.exists():
         parts.append("# Appendix: build notes\n\n" + notes.read_text().split("\n", 1)[1])
@@ -155,27 +176,26 @@ def build(preview_pages: list[int]) -> None:
         f'<li class="l{level}"><a href="#{slug}">{html.escape(text)}</a></li>' for level, slug, text in toc
     )
     document = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<title>DocMind AI — Interview Study Guide</title><style>{CSS}</style></head><body>
+<title>DocMind AI — {label}</title><style>{CSS}</style></head><body>
 <section class="title-page">
   <p class="kicker">AI Full-Stack Engineer interview preparation</p>
-  <p class="title">DocMind <span>AI</span><br>Interview Study Guide</p>
-  <p class="subtitle">How the project works, why every decision was made, and the fundamentals behind it —
-  AI/LLMs, backend, frontend, databases, security, scaling, testing and DevOps.</p>
+  <p class="title">DocMind <span>AI</span><br>{label.replace(" — ", "<br>")}</p>
+  <p class="subtitle">{subtitle}</p>
   <p class="meta">Built from the DocMind AI repository · {date.today():%d %B %Y}</p>
 </section>
 <nav class="toc"><h1>Contents</h1><ol>{toc_items}</ol></nav>
 {"".join(bodies)}
 </body></html>"""
 
-    BUILD.mkdir(parents=True, exist_ok=True)
-    (BUILD / "study-guide.html").write_text(document)
-    HTML(string=document, base_url=str(BUILD)).write_pdf(OUT)
-    print(f"Wrote {OUT.relative_to(ROOT)} ({OUT.stat().st_size // 1024} KB)")
+    build_dir.mkdir(parents=True, exist_ok=True)
+    (build_dir / "study-guide.html").write_text(document)
+    HTML(string=document, base_url=str(build_dir)).write_pdf(out)
+    print(f"Wrote {out.relative_to(ROOT)} ({out.stat().st_size // 1024} KB)")
 
     for page in preview_pages:
-        prefix = BUILD / f"page-{page:03d}"
+        prefix = build_dir / f"page-{page:03d}"
         cmd = ["pdftoppm", "-png", "-r", "70", "-f", str(page), "-l", str(page)]
-        subprocess.run([*cmd, "-singlefile", str(OUT), str(prefix)], check=True)  # noqa: S603
+        subprocess.run([*cmd, "-singlefile", str(out), str(prefix)], check=True)  # noqa: S603
         print(f"  preview {prefix.relative_to(ROOT)}.png")
 
 
@@ -183,6 +203,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
+    parser.add_argument("--edition", choices=["full", "short", "all"], default="all")
     parser.add_argument("--preview", default="", help="comma-separated page numbers to render as PNG")
     args = parser.parse_args()
-    build([int(p) for p in args.preview.split(",") if p.strip()])
+    pages = [int(p) for p in args.preview.split(",") if p.strip()]
+    for edition in EDITIONS if args.edition == "all" else [args.edition]:
+        build(edition, pages)

@@ -1,4 +1,4 @@
-# 18. One-page cheat sheet
+# 8. One-page cheat sheet
 
 <div class="cheat" markdown="1">
 

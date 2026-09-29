@@ -126,7 +126,7 @@ On failure, instead of `citations`/`done`:
 event: error
 data: {"code": "LLM_TIMEOUT", "message": "The AI provider took too long to respond. Please try again."}
 ```
-Error codes: `LLM_TIMEOUT`, `LLM_RATE_LIMITED`, `LLM_UNAVAILABLE`, `LLM_BAD_REQUEST`, `LLM_REFUSED`, `LLM_NOT_CONFIGURED`.
+Error codes: `LLM_TIMEOUT`, `LLM_RATE_LIMITED`, `LLM_UNAVAILABLE`, `LLM_BAD_REQUEST`, `LLM_BILLING`, `LLM_REFUSED`, `LLM_NOT_CONFIGURED`.
 
 `citations` lists only the sources the answer actually cites (`[n]` markers keep their numbers). When nothing relevant is retrieved, the answer is a fixed "couldn't find it in your uploaded documents" message, `citations` is `[]`, and no LLM call is made.
 
