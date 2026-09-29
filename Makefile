@@ -44,8 +44,9 @@ lint: ## Lint backend (ruff, black) and frontend (eslint, prettier)
 eval: ## Run the evaluation set against the running API and write docs/EVAL_RESULTS.md
 	$(BACKEND) python /scripts/eval.py
 
-study-guide: ## Build docs/Interview-Study-Guide.pdf
-	$(BACKEND) python /scripts/build_study_guide.py
+study-guide: ## Build docs/Interview-Study-Guide.pdf (in a small tools container)
+	docker build -q -t docmind-study-guide -f scripts/study_guide.Dockerfile scripts >/dev/null
+	docker run --rm -v "$(CURDIR):/work" docmind-study-guide python scripts/build_study_guide.py $(ARGS)
 
 lockfile: ## Regenerate frontend/package-lock.json with the same npm as the Docker image
 	docker run --rm -v "$(CURDIR)/frontend:/app" -w /app node:24-alpine npm install --package-lock-only --no-audit --no-fund

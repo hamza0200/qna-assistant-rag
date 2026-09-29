@@ -1,0 +1,18 @@
+digraph G {
+  rankdir=TB; bgcolor="transparent"; pad=0.2; nodesep=0.3; ranksep=0.4;
+  node [shape=box, style="rounded,filled", fillcolor="#ffffff", color="#1b2433", fontname="Noto Sans", fontsize=10, margin="0.12,0.06"];
+  edge [color="#5a6475", fontname="Noto Sans", fontsize=8.5, fontcolor="#5a6475"];
+  user [label="Users"]; cdn [label="CDN\n(static Next.js)"]; lb [label="Load balancer"];
+  api [label="API pods ×N\n(stateless)", fillcolor="#f7e27a"];
+  redis [label="Redis\nrate limits · cache", shape=cylinder];
+  s3 [label="Object storage\n(S3) PDFs", shape=folder];
+  q [label="Queue\n(SQS / Redis)"]; w [label="Ingestion workers ×M\n(autoscale on queue depth)"];
+  emb [label="Embedding service\n(GPU/CPU pool or API)"];
+  pgw [label="Postgres primary", shape=cylinder]; pgr [label="Read replicas", shape=cylinder];
+  vec [label="Vector store\n(pgvector partitions\nor Qdrant/Pinecone)", shape=cylinder, fillcolor="#eef1f6"];
+  llm [label="LLM providers\n(primary + fallback)"];
+  user -> cdn; user -> lb -> api;
+  api -> redis; api -> pgr [label="reads"]; api -> pgw [label="writes"]; api -> vec [label="search"];
+  api -> s3 [label="presigned upload"]; api -> q [label="enqueue"]; q -> w; w -> s3; w -> emb; w -> vec; w -> pgw;
+  api -> llm [label="stream"];
+}

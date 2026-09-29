@@ -1,0 +1,15 @@
+digraph G {
+  rankdir=LR; bgcolor="transparent"; pad=0.2; nodesep=0.3; ranksep=0.45;
+  node [shape=box, style="rounded,filled", fillcolor="#ffffff", color="#1b2433", fontname="Noto Sans", fontsize=10, margin="0.12,0.06"];
+  edge [color="#5a6475", fontname="Noto Sans", fontsize=8.5, fontcolor="#5a6475"];
+  cust [label="Customer\n(web widget)"]; gw [label="Chat API\n(SSE/WebSocket)"];
+  orch [label="Agent orchestrator\n(tool-use loop, guardrails)", fillcolor="#f7e27a"];
+  llm [label="LLM"]; kb [label="Help-center RAG\n(vector search)"];
+  tools [label="Tools (allow-listed)\nget_order · track_shipment\ncreate_ticket · refund (≤ limit)"];
+  crm [label="Order / CRM APIs\n(scoped service token)"];
+  human [label="Human agent queue\n(handoff with transcript)"];
+  audit [label="Audit log + metrics", shape=note];
+  cust -> gw -> orch; orch -> llm [label="messages + tool defs"]; llm -> orch [label="tool_use / text"];
+  orch -> kb; orch -> tools -> crm; orch -> human [label="low confidence /\nrequested / risky"];
+  orch -> audit;
+}

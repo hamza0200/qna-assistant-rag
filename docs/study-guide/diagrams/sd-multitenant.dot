@@ -1,0 +1,15 @@
+digraph G {
+  rankdir=TB; bgcolor="transparent"; pad=0.2; nodesep=0.35; ranksep=0.35;
+  node [shape=box, style="rounded,filled", fillcolor="#ffffff", color="#1b2433", fontname="Noto Sans", fontsize=10, margin="0.12,0.06"];
+  edge [color="#5a6475", fontname="Noto Sans", fontsize=8.5, fontcolor="#5a6475"];
+  req [label="Request: https://acme.app.com\nJWT {sub, tenant_id, role}"];
+  mw [label="Tenant resolution middleware\nverify JWT tenant == host tenant", fillcolor="#f7e27a"];
+  svc [label="Services (tenant_id passed explicitly)"];
+  subgraph cluster_db { label="Isolation options"; fontname="Noto Sans"; fontsize=9.5; style="rounded,dashed"; color="#1f3a8a";
+    pool [label="Pool: shared tables\ntenant_id column + Postgres RLS", fillcolor="#eef1f6"];
+    bridge [label="Bridge: schema per tenant"];
+    silo [label="Silo: database per tenant\n(enterprise / regulated)"];
+  }
+  kms [label="Per-tenant encryption keys (KMS)"];
+  req -> mw -> svc; svc -> pool; svc -> bridge; svc -> silo; silo -> kms [style=dashed]; pool -> kms [style=dashed];
+}

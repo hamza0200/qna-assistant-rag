@@ -28,6 +28,7 @@ Each entry: **Context / Decision / Alternatives considered / Trade-offs**. Entri
 - [ADR-024 — pgvector inside Postgres, not a dedicated vector database](#adr-024--pgvector-inside-postgres-not-a-dedicated-vector-database)
 - [ADR-025 — Local FastEmbed embeddings (`bge-small-en-v1.5`), not a hosted embeddings API](#adr-025--local-fastembed-embeddings-bge-small-en-v15-not-a-hosted-embeddings-api)
 - [ADR-026 — Retrieval-Augmented Generation, not fine-tuning](#adr-026--retrieval-augmented-generation-not-fine-tuning)
+- [ADR-027 — Study guide built with markdown + WeasyPrint in a tools container; diagrams in Graphviz](#adr-027--study-guide-built-with-markdown--weasyprint-in-a-tools-container-diagrams-in-graphviz)
 
 ---
 
@@ -216,3 +217,10 @@ The distributions overlap, so no threshold separates them. 0.45 keeps every answ
 **Decision.** RAG: retrieve relevant chunks at question time and put them in the prompt.
 **Alternatives considered.** Fine-tuning a model on the documents; long-context "stuff every document into the prompt".
 **Trade-offs.** RAG updates instantly when documents change (no retraining), keeps each user's data separate by construction, and supports citations because we know exactly which text the answer was based on. Fine-tuning teaches style and format well but is poor at memorising facts reliably, can't cite, is expensive to redo per change, and would mix users' data into one model. Long-context stuffing works for a handful of small documents but costs more per question and scales poorly; RAG keeps the prompt to ~5 chunks.
+
+## ADR-027 — Study guide built with markdown + WeasyPrint in a tools container; diagrams in Graphviz
+
+**Context.** §15 requires a PDF with a title page, table of contents, page numbers, readable code and diagrams, built by a Python script (`make study-guide`).
+**Decision.** `scripts/build_study_guide.py` converts `docs/study-guide/NN-*.md` (+ `notes.md` as an appendix) to HTML with Python-Markdown and renders it with WeasyPrint (CSS paged media: `counter(page)`, `target-counter()` for TOC page numbers, `string-set` running headers). Diagrams are Graphviz `.dot` files rendered to SVG, because WeasyPrint can't execute Mermaid. It runs in `scripts/study_guide.Dockerfile` (Pango, Graphviz, poppler for page previews) so only Docker is needed.
+**Alternatives considered.** ReportLab (no system dependencies, but every layout element would be hand-coded); headless Chrome printing (renders Mermaid, but not the Python toolchain the spec asks for); installing Pango/Graphviz on the host.
+**Trade-offs.** Graphviz is one extra build-time tool (never part of the app runtime). Mermaid diagrams in the repo docs and DOT diagrams in the guide are maintained separately.

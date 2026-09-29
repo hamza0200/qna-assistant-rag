@@ -1,0 +1,17 @@
+digraph G {
+  rankdir=TB; bgcolor="transparent"; pad=0.2; nodesep=0.3; ranksep=0.28;
+  node [shape=box, style="rounded,filled", fillcolor="#ffffff", color="#1b2433", fontname="Noto Sans", fontsize=10.5, margin="0.18,0.07", width=3.6];
+  edge [color="#5a6475", fontname="Noto Sans", fontsize=9, fontcolor="#5a6475"];
+  a [label="POST /api/documents (multipart, ≤10 files)"];
+  b [label="Validate: .pdf · MIME · %PDF- magic bytes · ≤20 MB"];
+  c [label="Save as <uuid>.pdf · insert documents row (processing)"];
+  d [label="202 Accepted → client polls every 2 s", fillcolor="#eef1f6"];
+  e [label="BackgroundTask: ingest_document()", fillcolor="#f7e27a"];
+  f [label="parse_pdf (thread): pypdf page text, strip running headers"];
+  g [label="chunk_pages: recursive split ≤800 chars, 150 overlap, per page"];
+  h [label="embed_documents (thread): batches of 32, title + chunk"];
+  i [label="ONE transaction: bulk INSERT chunks + status=ready"];
+  x [label="On any error: status=failed + error_message", color="#b42318", fontcolor="#b42318"];
+  a -> b -> c -> d; c -> e [style=dashed, label="after response"]; e -> f -> g -> h -> i;
+  e -> x [style=dotted, color="#b42318"];
+}

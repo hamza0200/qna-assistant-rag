@@ -1,0 +1,17 @@
+digraph G {
+  rankdir=TB; bgcolor="transparent"; pad=0.2; nodesep=0.35; ranksep=0.28;
+  node [shape=box, style="rounded,filled", fillcolor="#ffffff", color="#1b2433", fontname="Noto Sans", fontsize=10.5, margin="0.18,0.07", width=3.4];
+  edge [color="#5a6475", fontname="Noto Sans", fontsize=9, fontcolor="#5a6475"];
+  a [label="POST /api/chat {message, conversation_id?, document_ids?}"];
+  b [label="Checks before streaming: JWT · validation · rate limit · ownership"];
+  c [label="Save user message → event: meta"];
+  d [label="Embed query (BGE instruction) → pgvector top-5\nfiltered by user (+docs) → drop score < 0.45"];
+  q [label="Anything left?", shape=diamond, width=1.6, fillcolor="#eef1f6"];
+  n [label="Fixed 'not found' answer\n(LLM NOT called)"];
+  e [label="Prompt: system rules + history (6) + <source> blocks + question"];
+  f [label="LLM stream → event: token × N", fillcolor="#f7e27a"];
+  g [label="Parse [n] → event: citations → event: done"];
+  h [label="Persist assistant message + citations\n(partial answer kept on Stop/disconnect)"];
+  a -> b -> c -> d -> q;
+  q -> n [label="no"]; q -> e [label="yes"]; e -> f -> g -> h; n -> g;
+}

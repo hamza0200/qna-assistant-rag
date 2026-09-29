@@ -39,7 +39,7 @@ flowchart LR
 | Embeddings | FastEmbed `BAAI/bge-small-en-v1.5` (384-d, local, no API key) |
 | LLM | Anthropic Claude (default `claude-opus-5-5`) or OpenAI, via `LLM_PROVIDER` |
 
-Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (request flows with file paths) · [docs/DECISIONS.md](docs/DECISIONS.md) (26 architecture decisions and their trade-offs) · [docs/API.md](docs/API.md) (endpoint reference).
+Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (request flows with file paths) · [docs/DECISIONS.md](docs/DECISIONS.md) (27 architecture decisions and their trade-offs) · [docs/API.md](docs/API.md) (endpoint reference).
 
 ## Quick start
 
@@ -61,6 +61,7 @@ API docs (Swagger UI): <http://localhost:8000/docs>.
 | `make test` | Backend tests (98, in the backend container against a real Postgres `_test` DB; LLM mocked) and frontend tests (13, Vitest + Testing Library) |
 | `make lint` | ruff + black (Python), ESLint + Prettier (TypeScript) |
 | `make eval` | Runs the 22-question set in `sample-docs/test-questions.md` against the running app and writes [docs/EVAL_RESULTS.md](docs/EVAL_RESULTS.md) |
+| `make study-guide` | Builds [docs/Interview-Study-Guide.pdf](docs/Interview-Study-Guide.pdf) from `docs/study-guide/` (in a tools container) |
 | `make logs` | Tail all service logs (JSON, with request IDs) |
 
 Backend tests cover auth and JWT attacks, upload validation, chunking, ingestion, per-user isolation (IDOR) for documents, chunks and conversations, SSE event order, the no-context refusal path, follow-up history, stop/disconnect handling, rate limits, error mapping and prompt-injection defences. CI (`.github/workflows/ci.yml`) runs lint, migrations, tests and a production build on every push.

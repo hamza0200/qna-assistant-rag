@@ -1,6 +1,7 @@
 # Running interview notes (collected while building)
 
 ## Phase 1 — Scaffold
+
 - **Multi-stage Docker builds** (`backend/Dockerfile`, `frontend/Dockerfile`): the builder stage has compilers and caches; the runtime stage copies only the virtualenv / Next standalone output. Smaller images, smaller attack surface, faster pulls. Both run as a non-root user.
 - **Baking the embedding model into the image**: the FastEmbed model is downloaded during `docker build`, so containers start fast, work offline, and every replica uses the identical model version.
 - **Health endpoint returns 503 when the DB is down** (`backend/app/api/routes/health.py`) so a load balancer or orchestrator can pull the instance out of rotation. Liveness ("process is up") vs readiness ("can serve traffic") is a common follow-up question.
@@ -9,6 +10,7 @@
 - **Next.js 16 changes**: `middleware.ts` is renamed `proxy.ts`; request APIs (`cookies()`, `headers()`, `params`) are async only; Turbopack is the default bundler.
 
 ## Phase 2 — Database + auth
+
 - **UUID primary keys** (`backend/app/db/models.py`): not enumerable (`/documents/1`, `/documents/2`…), can be generated without a DB round trip, safe to merge across shards. Cost: 16 bytes vs 4/8, random inserts fragment B-tree indexes a little (UUIDv7 fixes that).
 - **Unique constraint instead of "SELECT then INSERT"** (`backend/app/api/routes/auth.py`): check-then-act is a race condition; the unique index makes the DB the single arbiter and we translate `IntegrityError` into 409.
 - **User enumeration defenses at login**: identical error for "no such user" and "wrong password", *and* bcrypt runs against a dummy hash when the user doesn't exist so timing is equal.
@@ -19,6 +21,7 @@
 - **npm lockfile gotcha**: an incremental `npm i` on a newer npm produced a lockfile `npm ci` rejected in Docker (optional wasm deps). Fix: regenerate the lockfile and match the npm major (Node 24 image). Good "debugging a CI-only failure" story.
 
 ## Phase 3 — Ingestion
+
 - **202 Accepted + polling** is the REST pattern for async work: the resource is created immediately in a `processing` state; the client polls `GET /documents/{id}`. The frontend polls every 2 s *only while* something is processing.
 - **Don't block the event loop**: pypdf and ONNX inference are CPU-bound and synchronous. Inside `async def`, calling them directly would freeze every other request (including live chat streams). `asyncio.to_thread` moves them to a worker thread. (The GIL is released inside ONNX Runtime's native code, so this gives real parallelism for embeddings.)
 - **Background task needs its own DB session**: the request-scoped session is closed once the response is sent.
@@ -31,6 +34,7 @@
 - **React 19 lint rule `set-state-in-effect`**: fetch in an effect and set state in the promise callback, returning a cancel function so late responses after unmount are ignored.
 
 ## Phase 4 — Retrieval + chat
+
 - **BGE similarity scores are compressed**: measured on the sample docs, a totally off-topic query ("capital of France") still scores ~0.41 and an in-domain but unanswerable one ("stock price") ~0.69, while good matches are ~0.70–0.84. A threshold only removes clearly off-topic queries; it can't detect "unanswerable but on-topic" — the LLM's grounding instructions have to do that. The spec default (0.35) filters nothing for this model.
 - **Dense retrieval misses acronyms**: "What are the RPO and RTO?" didn't retrieve the security-policy chunk that defines them. Embeddings capture meaning, not exact tokens — the argument for hybrid (BM25/full-text + vector) search.
 - **Threshold after ORDER BY, not in WHERE**: `ORDER BY embedding <=> :q LIMIT k` can use the HNSW index; adding `WHERE (embedding <=> :q) < x` generally can't. So filter the top-k in the application.
@@ -42,6 +46,7 @@
 - **Prompt-injection defences in the prompt layer** (`prompts.py`): untrusted-data rule in the system prompt, `<source>` delimiters, neutralising delimiter look-alikes inside chunks, no secrets or tools available to the model.
 
 ## Phase 5 — Hardening
+
 - **What's tested vs what's measured for prompt injection**: tests pin down the deterministic defences (injected text only ever appears inside a `<source>` block, chunks can't close their own delimiter, filenames can't forge attributes, no secrets anywhere in the prompt). Whether the *model* obeys is probabilistic — that's measured by the eval (Q19), not asserted by unit tests.
 - **Limits are also a security control**: 4,000-char questions, `max_tokens` on answers, a character budget on context, 20 MB uploads, 10 files per request — each bounds cost or resource use for a single request.
 - **Rate-limit keys**: per user when authenticated, per IP otherwise. In-memory counters don't work across replicas — use Redis.
@@ -53,6 +58,7 @@
 - **Accessibility caught by tests**: `aria-label` on a plain `div` isn't announced by screen readers — it needs a role (`role="group"`). Testing Library's role queries surface these issues.
 
 ## Phase 6 — Seed + eval
+
 - **Retrieval hit-rate 21/21 (100%)** at document and page level with `TOP_K=5`, `MIN_SIMILARITY=0.45` (see `docs/EVAL_RESULTS.md`).
 - **Threshold tuning story (ADR-020)**: in-domain answerable questions scored 0.508–0.84 top-1; off-topic probes 0.416–0.541 — overlapping distributions, so a threshold can only remove clearly off-topic questions. The rest is the prompt's job. Great answer to "how did you pick the threshold?": *measured, on a labelled set, and I know its limits*.
 - **Unanswerable ≠ irrelevant**: "What is Orbitra's stock price?" retrieves pricing chunks at ~0.69 — lexically/semantically close, but they don't contain the answer. Only the LLM, instructed to refuse, can tell.
@@ -62,6 +68,11 @@
 - **asyncio gotcha**: a pooled async engine is bound to the event loop that created its connections; calling `asyncio.run()` repeatedly requires `engine.dispose()` between runs.
 
 ## Phase 7 — Docs + CI
+
 - **CI mirrors local commands**: the GitHub Actions workflow runs the same lint/test/build steps as `make lint`/`make test`, against a real `pgvector/pgvector:pg16` service container, plus `alembic upgrade head && alembic check` to catch models drifting from migrations.
 - **Fresh-clone test**: the README's quick start was verified by cloning the repo into an empty directory and following only the README (different ports, `LLM_PROVIDER=fake`) — "works on my machine" is not a checkpoint.
 - **Docs for different readers**: README (what/how to run), ARCHITECTURE (how it works, with file paths), DECISIONS (why, with trade-offs), API (contract).
+
+## Phase 8 — Study guide
+- **Paged-media CSS** does the heavy lifting: `@page` margins and `counter(page)` for page numbers, `target-counter(attr(href), page)` + `leader(".")` for a table of contents with real page numbers, `string-set` for running section headers, `page-break-before` per chapter.
+- **Verify generated documents like code**: render pages to PNG (`pdftoppm`) and look at them. The first render caught three real problems — a code block inside a numbered list collapsing the list, lists without a preceding blank line being merged into paragraphs (41 instances), and a wide diagram too small to read.
