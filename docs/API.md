@@ -63,7 +63,7 @@ Document object:
   "chunk_count": 8,
   "status": "ready",
   "error_message": null,
-  "created_at": "2026-09-29T18:52:56Z"
+  "created_at": "<ISO-8601 timestamp>"
 }
 ```
 `status` is `processing`, `ready` or `failed` (with `error_message`).

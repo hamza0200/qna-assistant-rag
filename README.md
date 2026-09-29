@@ -13,7 +13,7 @@ If the answer isn't in your documents, DocMind says so instead of guessing.
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20%2B%20pgvector-4169E1?logo=postgresql&logoColor=white)
 ![Claude](https://img.shields.io/badge/LLM-Claude%20%7C%20OpenAI-D97757)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-green)
 
 ![Documents page](docs/screenshots/documents.png)
 
@@ -23,7 +23,25 @@ If the answer isn't in your documents, DocMind says so instead of guessing.
 
 ## Contents
 
-[Features](#-features) · [Quick start](#-quick-start) · [Demo accounts](#-demo-accounts--credentials) · [API keys & models](#-api-keys--models) · [How it works](#-how-it-works) · [Code map](#-code-map-every-file) · [Database](#-database) · [Tests](#-tests-lint-eval) · [Troubleshooting](#-troubleshooting) · [New to Python?](#-new-to-python) · [Contributing](#-contributing)
+[Purpose](#-purpose) · [Features](#-features) · [Quick start](#-quick-start) · [Stop the project](#-stop-the-project) · [Demo accounts](#-demo-accounts--credentials) · [API keys & models](#-api-keys--models) · [Database (pgAdmin)](#-database-pgadmin) · [How it works](#-how-it-works) · [Code map](#-code-map-every-file) · [Docs folder](#-docs-folder) · [Tests](#-tests) · [Troubleshooting](#-troubleshooting) · [New to Python?](#-new-to-python) · [License](#-license)
+
+## 🎓 Purpose
+
+**This is a learning project.** It was built to understand, hands-on, how modern AI applications work end to end:
+
+| Concept | What you'll learn here |
+|---|---|
+| **LLMs** | Calling Claude/OpenAI, streaming responses, prompts, tokens, cost and error handling |
+| **RAG** (Retrieval-Augmented Generation) | Answering from *your* documents instead of the model's memory, with citations |
+| **Chunking** | Splitting documents into overlapping pieces that are small enough to search precisely |
+| **Embeddings** | Turning text into vectors (lists of numbers) that capture meaning |
+| **Retrieval / vector search** | Finding the most similar chunks with pgvector, similarity thresholds, per-user filtering |
+| **Grounding & hallucinations** | Making the model say "not found" instead of inventing answers |
+| **Prompt injection** | Defending against documents that contain malicious instructions |
+| **Evaluation** | Measuring retrieval and answer quality with a labelled question set |
+| **Full-stack engineering** | FastAPI, async Python, PostgreSQL, Next.js/React, streaming (SSE), auth, Docker, tests, CI |
+
+It's a complete, working, tested app, but it's meant for studying and experimenting, not as a production service. Fork it, break it, change the chunk size or prompt, and watch what happens.
 
 ## ✨ Features
 
@@ -53,13 +71,14 @@ If the answer isn't in your documents, DocMind says so instead of guessing.
 
 ### Prerequisites
 
-| Need | Version | Check |
+| Need | Why | Get it / check |
 |---|---|---|
-| Git | any | `git --version` |
-| Docker Desktop / Docker Engine | 24+ with Compose v2 | `docker compose version` |
-| make | any (built into macOS/Linux) | `make --version` |
-| LLM API key | Anthropic **or** OpenAI (with credits) | [how to get one](#-api-keys--models) |
-| Free resources | ~4 GB RAM, ~4 GB disk | — |
+| Git | Clone the repo | `git --version` |
+| Docker Desktop / Docker Engine (24+, Compose v2) | Runs the database, backend and frontend | [docker.com](https://www.docker.com/products/docker-desktop/) · `docker compose version` |
+| make | Short commands (`make up`, `make seed`…) | Built into macOS/Linux · `make --version` |
+| pgAdmin 4 | See and query the database visually | [pgadmin.org/download](https://www.pgadmin.org/download/) |
+| LLM API key | Anthropic **or** OpenAI, with credits | [How to generate one](#-api-keys--models) |
+| ~4 GB RAM, ~4 GB disk | Docker images + embedding model | — |
 
 > **Windows:** use [WSL2](https://learn.microsoft.com/windows/wsl/install) + Docker Desktop, and run all commands in the WSL terminal.
 > **No API key yet?** Set `LLM_PROVIDER=fake` to try the app offline (answers are quoted passages).
@@ -68,13 +87,14 @@ If the answer isn't in your documents, DocMind says so instead of guessing.
 
 ```bash
 # 1. Get the code
-git clone <your-repo-url> docmind-ai && cd docmind-ai
+git clone https://github.com/hamza0200/qna-assistant-rag.git
+cd qna-assistant-rag
 
 # 2. Create your config
 cp .env.example .env
 
 # 3. Edit .env: set ANTHROPIC_API_KEY (or OPENAI_API_KEY + LLM_PROVIDER=openai)
-#    and a random JWT_SECRET:
+#    and a random JWT_SECRET. Generate one with:
 python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 
 # 4. Build and start everything (first run takes a few minutes)
@@ -92,14 +112,19 @@ make seed
 | 📘 API docs (Swagger) | http://localhost:8000/docs |
 | ❤️ Health check | http://localhost:8000/api/health |
 
-**Stop / reset:**
-
-```bash
-make down                  # stop, keep data
-docker compose down -v     # stop and DELETE all data
-```
-
 > Ports 3000 / 8000 / 5433 busy? Change `FRONTEND_PORT` / `BACKEND_PORT` / `DB_PORT` in `.env`, update `CORS_ORIGINS` and `NEXT_PUBLIC_API_URL` to match, then `make up`.
+
+## ⏹️ Stop the project
+
+| Goal | Command | Your data |
+|---|---|---|
+| Stop everything | `make down` (or `docker compose down`) | ✅ kept (users, documents, chats) |
+| Start again later | `make up` | ✅ still there |
+| Restart only the backend (e.g. after editing `.env`) | `docker compose up -d backend` | ✅ kept |
+| Stop **and wipe everything** | `docker compose down -v` | ❌ database and uploaded files deleted |
+| Fresh start | `docker compose down -v && make up && make seed` | ❌ reset to the demo data |
+
+To confirm everything has stopped, run `docker compose ps`; it should list no running services.
 
 ---
 
@@ -108,7 +133,7 @@ docker compose down -v     # stop and DELETE all data
 | Account | Username / email | Password | Created by |
 |---|---|---|---|
 | App demo user | `demo@docmind.dev` | `Demo@12345` | `make seed` |
-| PostgreSQL | `docmind` (database `docmind`, port `5433`) | `docmind` | `.env` defaults |
+| PostgreSQL (pgAdmin) | `docmind` (database `docmind`, host `localhost`, port `5433`) | `docmind` | `.env` defaults |
 
 You can also register your own account on the login page.
 
@@ -118,25 +143,80 @@ You can also register your own account on the login page.
 
 ## 🔑 API keys & models
 
-**Get a key (you need one):**
+You need **one** key: Anthropic (default) **or** OpenAI.
 
-| Provider | Get the key | Add credits | Model names |
-|---|---|---|---|
-| Anthropic (default) | [console.anthropic.com](https://console.anthropic.com) → Settings → API Keys | Settings → Billing | [Models overview](https://docs.anthropic.com/en/docs/about-claude/models/overview) |
-| OpenAI | [platform.openai.com](https://platform.openai.com) → API keys | Settings → Billing | [Models](https://platform.openai.com/docs/models) |
+### Generate an Anthropic key
 
-**Choose provider and model in `.env`:**
+1. Sign up or log in at [console.anthropic.com](https://console.anthropic.com).
+2. **Settings → Billing:** add credits. Keys don't work without credits.
+3. **Settings → API Keys → Create Key:** give it a name (e.g. `docmind-local`) and copy it. It starts with `sk-ant-` and is shown **only once**.
+4. Paste it into `.env`: `ANTHROPIC_API_KEY=sk-ant-...`
+
+### Generate an OpenAI key
+
+1. Sign up or log in at [platform.openai.com](https://platform.openai.com).
+2. **Settings → Billing:** add a payment method or credits.
+3. **API keys → Create new secret key:** copy it (it starts with `sk-`; shown only once).
+4. In `.env`: `OPENAI_API_KEY=sk-...` and `LLM_PROVIDER=openai`.
+
+### Choose the model (`.env`)
 
 ```bash
 LLM_PROVIDER=anthropic          # anthropic | openai | fake
 LLM_MODEL=claude-sonnet-5-5     # e.g. claude-opus-5-5 | claude-sonnet-5-5 | claude-haiku-4-5
 LLM_EFFORT=low                  # Anthropic only; leave empty for claude-haiku-4-5
 LLM_FALLBACKS_ENABLED=true      # Anthropic only; set false for claude-haiku-4-5
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=                 # when LLM_PROVIDER=openai, use a model name from OpenAI's models page
 ```
 
-Apply the changes with `docker compose up -d backend`.
+Model lists: [Anthropic models](https://docs.anthropic.com/en/docs/about-claude/models/overview) · [OpenAI models](https://platform.openai.com/docs/models). Apply changes with `docker compose up -d backend`.
+
+> 🔒 Keys stay in `.env` (git-ignored) and are used only by the backend. They never reach the browser or the LLM prompt. If a key is ever exposed, delete it in the console and create a new one.
+
+---
+
+## 🐘 Database (pgAdmin)
+
+The app must be running (`make up`).
+
+**Connect with pgAdmin 4:**
+
+1. Open pgAdmin → right-click **Servers** → **Register → Server…**
+2. **General** tab → Name: `DocMind (local)`
+3. **Connection** tab:
+
+   | Field | Value |
+   |---|---|
+   | Host | `localhost` |
+   | Port | `5433` (not 5432) |
+   | Maintenance database | `docmind` |
+   | Username / Password | `docmind` / `docmind` (tick *Save password*) |
+
+4. **Save.** Browse to **Databases → docmind → Schemas → public → Tables**, then right-click a table → **View/Edit Data → All Rows**.
+5. For SQL, use **Tools → Query Tool** and press **F5** to run.
+
+**Tables:**
+
+| Table | Holds |
+|---|---|
+| `users` | Email + password hash |
+| `documents` | One row per PDF: name, status, pages, chunks, stored file name |
+| `chunks` | Text pieces, page number, `embedding` (384 numbers) |
+| `conversations` | One row per chat |
+| `messages` | Questions, answers and their citations |
+
+**Handy queries:**
+
+```sql
+SELECT email, created_at FROM users;
+SELECT filename, status, page_count, chunk_count, error_message FROM documents;
+SELECT d.filename, c.page_number, left(c.content, 100) AS preview
+  FROM chunks c JOIN documents d ON d.id = c.document_id ORDER BY d.filename, c.chunk_index;
+SELECT role, left(content, 120), citations FROM messages ORDER BY created_at DESC LIMIT 20;
+```
+
+- **Without pgAdmin:** `docker compose exec db psql -U docmind -d docmind`
+- **`docmind_test` database:** used by the automated tests (normally empty).
+- **Uploaded files:** stored in the backend container at `/app/storage/uploads/<uuid>.pdf`; the original names are in `documents.filename`.
 
 ---
 
@@ -232,7 +312,7 @@ sequenceDiagram
 | `Makefile` | Shortcuts: `up`, `down`, `seed`, `test`, `lint`, `eval`, `study-guide` |
 | `.env.example` | Every setting with safe placeholders; copy to `.env` |
 | `.github/workflows/ci.yml` | CI: lint + migrations + tests + build on every push |
-| `CLAUDE.md` | The original project specification |
+| `LICENSE` | MIT license |
 
 </details>
 
@@ -276,23 +356,6 @@ Other backend files: `alembic/versions/0001_initial_schema.py` (creates tables +
 </details>
 
 <details>
-<summary><b>Backend tests: <code>backend/tests/</code></b></summary>
-
-| File | Tests |
-|---|---|
-| `conftest.py` | Test database setup, logged-in test users |
-| `helpers.py` | Tiny PDF builder, fake embedder |
-| `test_auth.py` | Register/login, expired/forged tokens |
-| `test_chunker.py` | Parsing, chunk size/overlap, page boundaries |
-| `test_documents.py` | Upload → ready, delete, other users can't access |
-| `test_chat.py` | Stream order, citations, "not found", follow-ups, Stop |
-| `test_security.py` | Upload attacks, prompt injection |
-| `test_hardening.py` | Rate limits, errors, headers, CORS, LLM errors |
-| `test_eval_scoring.py` | The eval script's grading |
-
-</details>
-
-<details>
 <summary><b>Frontend: <code>frontend/src/</code></b></summary>
 
 | File | Purpose |
@@ -320,61 +383,69 @@ Other backend files: `alembic/versions/0001_initial_schema.py` (creates tables +
 | `lib/sse.ts` | Parses the `event:` / `data:` stream |
 | `lib/auth.ts` | Stores the login token |
 | `types/index.ts` | TypeScript types matching the backend |
-| `*.test.ts(x)` | Frontend tests (Vitest) |
 
 </details>
 
 <details>
-<summary><b>Scripts, samples and docs</b></summary>
+<summary><b>Scripts and sample data</b></summary>
 
 | File | Purpose |
 |---|---|
 | `scripts/seed.py` | Creates the demo user and uploads `sample-docs/*.pdf` |
 | `scripts/eval.py` | Asks 22 test questions and writes `docs/EVAL_RESULTS.md` |
-| `scripts/build_study_guide.py` | Builds the study guide PDFs |
-| `sample-docs/` | 5 fictional company PDFs + `test-questions.md` (one PDF contains a planted prompt injection) |
-| `docs/ARCHITECTURE.md` | Detailed flows with file paths |
-| `docs/DECISIONS.md` | Why each technology/design was chosen |
-| `docs/API.md` | Every endpoint with examples |
-| `docs/EVAL_RESULTS.md` | Latest evaluation results |
-| `docs/Interview-Study-Guide*.pdf` | Full (76 p.) and one-day (19 p.) study guides |
+| `scripts/build_study_guide.py` | Builds the study guide PDFs from Markdown |
+| `scripts/study_guide.Dockerfile` | Tools image used to build the PDFs |
+| `sample-docs/*.pdf` | 5 fictional company PDFs (one contains a planted prompt injection) |
+| `sample-docs/test-questions.md` | The 22 evaluation questions with expected answers |
 
 </details>
 
+## 📚 Docs folder
+
+Everything in [`docs/`](docs/):
+
+| File | What it's for |
+|---|---|
+| [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) | How the system is built: diagrams, the upload and chat flows step by step, with file paths |
+| [`DECISIONS.md`](docs/DECISIONS.md) | Why each technology and design was chosen (27 decisions), with alternatives and trade-offs |
+| [`API.md`](docs/API.md) | Every API endpoint: request/response examples, error codes, the streaming event format |
+| [`EVAL_RESULTS.md`](docs/EVAL_RESULTS.md) | Latest evaluation run: per-question retrieval and answer results (generated by `make eval`) |
+| [`Interview-Study-Guide.pdf`](docs/Interview-Study-Guide.pdf) | Full study guide (76 pages): project, decisions, AI/backend/frontend/DB/security fundamentals, 80 Q&As |
+| [`Interview-Study-Guide-Short.pdf`](docs/Interview-Study-Guide-Short.pdf) | One-day edition (19 pages): the essentials and 35 most likely questions |
+| [`study-guide/*.md`](docs/study-guide/) | Markdown sources of the full guide (one file per section) + `diagrams/*.dot` |
+| [`study-guide/notes.md`](docs/study-guide/notes.md) | Lessons learned while building, phase by phase (appendix of the full guide) |
+| [`study-guide-short/*.md`](docs/study-guide-short/) | Markdown sources of the one-day guide |
+| [`screenshots/`](docs/screenshots/) | Images used in this README |
+
+Rebuild both PDFs after editing the Markdown: `make study-guide`.
+
 ---
 
-## 🐘 Database
-
-| Table | Holds |
-|---|---|
-| `users` | Email + password hash |
-| `documents` | One row per PDF: name, status, pages, chunks, stored file name |
-| `chunks` | Text pieces, page number, `embedding` (384 numbers) |
-| `conversations` | One row per chat |
-| `messages` | Questions, answers and their citations |
-
-**Connect:**
+## 🧪 Tests
 
 ```bash
-docker compose exec db psql -U docmind -d docmind     # terminal
+make test     # all tests (backend in Docker + frontend)
+make lint     # code style and type checks
+make eval     # quality check against the real LLM (uses your API key)
 ```
 
-For a GUI (pgAdmin, TablePlus, DBeaver), use host `localhost`, port `5433`, database `docmind`, user/password `docmind` / `docmind`.
+**How they work:** backend tests run against a real PostgreSQL test database (`docmind_test`). The LLM and embedding model are replaced by fast fakes, so tests are free, offline and deterministic. Frontend tests run in a simulated browser (Vitest).
 
-**Uploaded files** are stored in the backend container at `/app/storage/uploads/<uuid>.pdf` (Docker volume `uploads`). The original name ↔ stored name mapping is in `documents.filename` / `documents.storage_path`.
-
----
-
-## 🧪 Tests, lint, eval
-
-| Command | Does |
+| Test file | What it checks |
 |---|---|
-| `make test` | 100 backend tests (real Postgres, LLM mocked) + 13 frontend tests |
-| `make lint` | ruff + black (Python), ESLint + Prettier + tsc (TypeScript) |
-| `make eval` | Runs 22 labelled questions against the app (uses your API key) → `docs/EVAL_RESULTS.md` |
-| `make logs` | Live JSON logs from all services |
+| `backend/tests/test_auth.py` | Register, login, `/me`; rejects expired, forged and unsigned tokens |
+| `backend/tests/test_chunker.py` | PDF text extraction, chunk size and overlap, no chunk crosses a page |
+| `backend/tests/test_documents.py` | Upload → ready, delete removes chunks, users can't see each other's files |
+| `backend/tests/test_chat.py` | Stream order (meta → token → citations → done), citations, "not found" path, follow-ups, Stop |
+| `backend/tests/test_security.py` | Fake/oversized/renamed uploads, path tricks in filenames, prompt-injection defences |
+| `backend/tests/test_hardening.py` | Rate limits, error format, security headers, CORS, LLM error messages |
+| `backend/tests/test_eval_scoring.py` | The grading logic of `scripts/eval.py` |
+| `frontend/src/lib/sse.test.ts` | Parsing the streamed answer, even when split mid-message |
+| `frontend/src/components/MessageBubble.test.tsx` | Markdown, citation chips, no HTML/script injection |
 
-Current eval: retrieval finds the right source for **21/21** questions.
+`backend/tests/conftest.py` sets up the test database and logged-in test users; `helpers.py` builds tiny PDFs and the fake embedder.
+
+**Eval:** `make eval` asks the 22 questions in `sample-docs/test-questions.md` (facts, tables, multi-document, refusals, prompt injection, follow-ups) and scores retrieval and answers. Current retrieval score: **21/21**.
 
 <details>
 <summary><b>Try these questions in the chat</b></summary>
@@ -422,6 +493,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev    # http://localhost:3000
 | "AI provider is not configured" | Set `LLM_PROVIDER` + matching API key → `docker compose up -d backend` |
 | "configured AI model isn't available" | Check the `LLM_MODEL` spelling |
 | API calls fail from the browser | `NEXT_PUBLIC_API_URL` / `CORS_ORIGINS` don't match your ports → `make up` |
+| pgAdmin can't connect | App running? (`docker compose ps`) Port is `5433`, not 5432 |
 | Document shows `failed` | Scanned (image-only) or password-protected PDFs aren't supported yet |
 | Start fresh | `docker compose down -v && make up && make seed` |
 
@@ -464,6 +536,8 @@ A quick map for JavaScript/TypeScript developers:
 
 ## 🤝 Contributing
 
+Issues and pull requests are welcome at [github.com/hamza0200/qna-assistant-rag](https://github.com/hamza0200/qna-assistant-rag).
+
 1. Fork → `git checkout -b feat/my-change`
 2. Make changes with tests
 3. `make lint && make test`
@@ -473,4 +547,6 @@ Never commit `.env` or API keys.
 
 ## 📜 License
 
-Not chosen yet. Add a `LICENSE` file (e.g. MIT or Apache-2.0) before publishing.
+[MIT](LICENSE): free to use, copy, modify and share, including commercially, as long as the license notice is kept. Provided as-is, without warranty.
+
+This project exists **for learning**: to explore LLMs, RAG, chunking, embeddings, retrieval, evaluation and full-stack engineering through a complete working example. It isn't a hardened production service. Review the [security notes](docs/DECISIONS.md) before deploying it anywhere public.

@@ -34,10 +34,10 @@ Each entry: **Context / Decision / Alternatives considered / Trade-offs**. Entri
 
 ## ADR-001 — Repository root is the project root
 
-**Context.** The spec's folder tree is rooted at `docmind-ai/`, but the repository was created as `qa-assistant/` with `CLAUDE.md` already at its root.
-**Decision.** Treat the repository root as `docmind-ai/`; every path in the spec maps 1:1 onto the repo root.
+**Context.** The original specification described the project inside a `docmind-ai/` folder.
+**Decision.** The repository root *is* the project: `backend/`, `frontend/`, `scripts/`, `docs/` sit at the top level.
 **Alternatives considered.** Nesting everything under a `docmind-ai/` subfolder.
-**Trade-offs.** Nesting would add a pointless level to every command (`cd docmind-ai && make up`) and split `CLAUDE.md` from the code it describes.
+**Trade-offs.** Nesting would add a pointless level to every command (`cd docmind-ai && make up`).
 
 ## ADR-002 — Configurable host ports
 

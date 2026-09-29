@@ -13,7 +13,7 @@ import re
 
 from app.services.retriever import RetrievedChunk
 
-PROMPT_VERSION = "2026-09-29.1"
+PROMPT_VERSION = "1.0"
 
 SYSTEM_PROMPT = """\
 You are DocMind, an assistant that answers questions using only the user's uploaded documents.

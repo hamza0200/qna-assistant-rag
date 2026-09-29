@@ -19,7 +19,6 @@ import argparse
 import html
 import re
 import subprocess
-from datetime import date
 from pathlib import Path
 
 import markdown
@@ -181,7 +180,7 @@ def build(edition: str, preview_pages: list[int]) -> None:
   <p class="kicker">AI Full-Stack Engineer interview preparation</p>
   <p class="title">DocMind <span>AI</span><br>{label.replace(" — ", "<br>")}</p>
   <p class="subtitle">{subtitle}</p>
-  <p class="meta">Built from the DocMind AI repository · {date.today():%d %B %Y}</p>
+  <p class="meta">Built from the DocMind AI repository · github.com/hamza0200/qna-assistant-rag</p>
 </section>
 <nav class="toc"><h1>Contents</h1><ol>{toc_items}</ol></nav>
 {"".join(bodies)}

@@ -1,7 +1,7 @@
 """RAG orchestration: retrieve -> prompt -> stream -> citations -> persist.
 
 `answer_stream` is an async generator of (event, data) pairs matching the SSE
-contract in CLAUDE.md §9 (meta, token*, citations, done | error). It knows
+contract documented in docs/API.md (meta, token*, citations, done | error). It knows
 nothing about HTTP; the chat route turns the pairs into SSE frames.
 """
 
