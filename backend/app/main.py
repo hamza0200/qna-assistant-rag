@@ -1,5 +1,6 @@
 """FastAPI application factory: middleware, routers, exception handlers."""
 
+import asyncio
 import logging
 import time
 import uuid
@@ -10,19 +11,31 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 
-from app.api.routes import auth, health
+from app.api.routes import auth, documents, health
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import request_id_var, setup_logging
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
+from app.db.session import engine
+from app.services.embeddings import get_embedding_provider
+from app.services.ingestion import fail_stale_processing_documents
 
 logger = logging.getLogger("app.request")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Startup/shutdown hook. Heavy singletons (embedding model) are loaded here."""
+    """Startup/shutdown hook.
+
+    The embedding model is loaded once here (in a thread, it takes ~1 s) rather
+    than lazily on the first request, so no user pays the cold-start cost.
+    """
+    await asyncio.to_thread(get_embedding_provider)
+    failed = await fail_stale_processing_documents()
+    if failed:
+        logger.warning("stale_documents_failed", extra={"count": failed})
     yield
+    await engine.dispose()
 
 
 def create_app() -> FastAPI:
@@ -73,6 +86,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
+    app.include_router(documents.router, prefix="/api")
     return app
 
 

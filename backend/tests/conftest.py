@@ -27,9 +27,16 @@ from sqlalchemy.engine import make_url  # noqa: E402
 
 os.environ["UPLOAD_DIR"] = tempfile.mkdtemp(prefix="docmind-test-uploads-")
 
+from app.api.routes.documents import get_embedder  # noqa: E402
 from app.db.models import Base  # noqa: E402
 from app.db.session import engine  # noqa: E402
 from app.main import app  # noqa: E402
+from tests.helpers import FakeEmbedder  # noqa: E402
+
+fake_embedder = FakeEmbedder()
+# The real model is never loaded in tests (httpx's ASGITransport doesn't run the
+# lifespan hook either), keeping the suite fast and offline.
+app.dependency_overrides[get_embedder] = lambda: fake_embedder
 
 
 async def _ensure_database_exists() -> None:
