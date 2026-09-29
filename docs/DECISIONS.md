@@ -115,3 +115,24 @@ Each entry: **Context / Decision / Alternatives considered / Trade-offs**. Entri
 **Decision.** `react-markdown` (pre-approved) with its `remark-gfm` plugin (tables, strikethrough). Inline `[n]` markers are rewritten to `#cite-n` links and rendered as buttons that open the source panel.
 **Alternatives considered.** `dangerouslySetInnerHTML` with a Markdown-to-HTML library; plain text.
 **Trade-offs.** react-markdown builds React elements and ignores raw HTML by default, so model output (which can be influenced by document content) can't inject script — important because the LLM is fed untrusted text.
+
+## ADR-017 — JWT in memory + localStorage (not an httpOnly cookie)
+
+**Context.** The SPA needs to send the token on every API call, including the streaming `fetch`, and survive page reloads.
+**Decision.** Keep the JWT in a module variable and mirror it to `localStorage` (`frontend/src/lib/auth.ts`); send it as `Authorization: Bearer`. A 401 clears it; logging out in one tab logs out the others via the `storage` event.
+**Alternatives considered.** httpOnly + `Secure` + `SameSite` cookie set by the backend (the production choice); memory-only (lost on refresh); refresh-token rotation.
+**Trade-offs.** localStorage is readable by any script on the origin, so an XSS bug would expose the token. Mitigations here: React escapes output, Markdown is rendered without raw HTML, the CSP restricts `connect-src` to our own API (limiting exfiltration), and tokens expire after 60 minutes. An httpOnly cookie removes script access entirely but brings CSRF into scope (needs `SameSite` and/or CSRF tokens) and cross-origin cookie configuration between the frontend and API.
+
+## ADR-018 — Rate limiting per user (authenticated) or per IP (anonymous), in memory
+
+**Context.** Chat calls cost money; login is a brute-force target; uploads are CPU-heavy.
+**Decision.** slowapi with limits from env (`/chat` 20/min, upload 10/min, `/auth/login` 5/min). The key is `user:<id>` when a valid JWT is present, else `ip:<addr>`. 429s use the standard error shape and include `Retry-After`.
+**Alternatives considered.** Per-IP only (punishes users sharing an office NAT); an API gateway (nginx, Cloudflare, AWS API Gateway); Redis-backed counters.
+**Trade-offs.** In-memory counters are per process: with N replicas the effective limit is N× the configured one and counters reset on restart. For horizontal scaling, point slowapi at Redis (`storage_uri`).
+
+## ADR-019 — Security headers and a CSP on both apps
+
+**Context.** Defence in depth against clickjacking, MIME sniffing and XSS.
+**Decision.** The API sends `default-src 'none'` CSP, `X-Frame-Options: DENY`, `nosniff`, `no-referrer` (it only serves JSON/SSE; `/docs` is exempt from the CSP and disabled in production). The frontend follows Next's no-nonce CSP recipe with `connect-src` limited to our API origin.
+**Alternatives considered.** Nonce-based CSP via Next's `proxy.ts` (stricter `script-src`, but forces dynamic rendering of every page).
+**Trade-offs.** `'unsafe-inline'` scripts are still allowed on the frontend; a nonce-based CSP would close that at the cost of static optimisation.

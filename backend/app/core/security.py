@@ -19,7 +19,7 @@ BCRYPT_MAX_BYTES = 72
 
 def hash_password(password: str) -> str:
     """Return a salted bcrypt hash (the salt and cost are embedded in the string)."""
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=get_settings().bcrypt_rounds)).decode()
 
 
 def verify_password(password: str, password_hash: str) -> bool:

@@ -92,7 +92,7 @@ function MessageBubbleImpl({ message, activeChunkId, onOpenCitation }: MessageBu
       )}
 
       {message.citations.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2" aria-label="Sources">
+        <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Sources">
           {message.citations.map((c) => (
             <CitationChip
               key={c.index}

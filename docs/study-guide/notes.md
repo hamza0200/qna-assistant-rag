@@ -40,3 +40,14 @@
 - **React closure bug found in e2e testing**: a `setState(prev => …)` updater referenced a mutable local (`assistantId`) that was reassigned right after the call. Updaters run later, at render time, so they saw the *new* value. Fix: capture into a `const` before calling `setState`. Classic interview story about stale/mutable closures.
 - **`memo` on MessageBubble** so earlier messages don't re-render on every streamed token; stable callbacks via `useCallback`.
 - **Prompt-injection defences in the prompt layer** (`prompts.py`): untrusted-data rule in the system prompt, `<source>` delimiters, neutralising delimiter look-alikes inside chunks, no secrets or tools available to the model.
+
+## Phase 5 — Hardening
+- **What's tested vs what's measured for prompt injection**: tests pin down the deterministic defences (injected text only ever appears inside a `<source>` block, chunks can't close their own delimiter, filenames can't forge attributes, no secrets anywhere in the prompt). Whether the *model* obeys is probabilistic — that's measured by the eval (Q19), not asserted by unit tests.
+- **Limits are also a security control**: 4,000-char questions, `max_tokens` on answers, a character budget on context, 20 MB uploads, 10 files per request — each bounds cost or resource use for a single request.
+- **Rate-limit keys**: per user when authenticated, per IP otherwise. In-memory counters don't work across replicas — use Redis.
+- **Log injection**: a client-supplied `X-Request-ID` is echoed into logs, so it's only accepted if it matches `[A-Za-z0-9-]{1,64}`.
+- **500s never leak internals**: the catch-all handler logs the traceback server-side and returns a generic message (test asserts the secret in the exception text isn't in the response).
+- **CSP `connect-src`** limits where browser JS can send data — useful damage control for tokens stored in localStorage.
+- **`upgrade-insecure-requests` gotcha**: it would rewrite `http://localhost` API calls to https in local dev, so it's only for production behind TLS.
+- **Test speed**: bcrypt cost is configurable; tests use 4 rounds (vs 12 in prod), taking the suite from ~20 s to ~2.5 s. Each +1 round doubles hashing time.
+- **Accessibility caught by tests**: `aria-label` on a plain `div` isn't announced by screen readers — it needs a role (`role="group"`). Testing Library's role queries surface these issues.

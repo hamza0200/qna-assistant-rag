@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import re
 import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -21,6 +22,17 @@ from app.services.embeddings import get_embedding_provider
 from app.services.ingestion import fail_stale_processing_documents
 
 logger = logging.getLogger("app.request")
+
+_REQUEST_ID = re.compile(r"[A-Za-z0-9-]{1,64}")
+
+# The API only returns JSON/SSE, so it can use a strict policy: nothing may be
+# framed, sniffed into another content type, or load sub-resources.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+}
 
 
 @asynccontextmanager
@@ -42,7 +54,17 @@ def create_app() -> FastAPI:
     settings = get_settings()
     setup_logging(settings.log_level)
 
-    app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
+    # Interactive API docs are handy in development but advertise the attack
+    # surface in production, so they're switched off there.
+    docs = settings.environment != "production"
+    app = FastAPI(
+        title=settings.app_name,
+        version="1.0.0",
+        lifespan=lifespan,
+        docs_url="/docs" if docs else None,
+        redoc_url=None,
+        openapi_url="/openapi.json" if docs else None,
+    )
 
     # CORS restricted to the configured frontend origin(s) only.
     app.add_middleware(
@@ -58,13 +80,19 @@ def create_app() -> FastAPI:
     async def request_context(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        """Attach a request ID to every log line and response, and log latency."""
-        rid = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:16]
+        """Attach a request ID to every log line and response, add security headers, log latency."""
+        # Accept a caller's ID (for tracing across services) only if it's well-formed:
+        # it ends up in logs, so arbitrary input would allow log injection.
+        incoming = request.headers.get("X-Request-ID", "")
+        rid = incoming if _REQUEST_ID.fullmatch(incoming) else uuid.uuid4().hex[:16]
         token = request_id_var.set(rid)
         start = time.perf_counter()
         try:
             response = await call_next(request)
             response.headers["X-Request-ID"] = rid
+            response.headers.update(SECURITY_HEADERS)
+            if request.url.path == "/docs":  # Swagger UI loads scripts from a CDN
+                del response.headers["Content-Security-Policy"]
             # For streaming responses this measures time-to-headers, not the full stream;
             # the chat route logs its own end-to-end timings.
             logger.info(

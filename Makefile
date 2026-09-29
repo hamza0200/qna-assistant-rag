@@ -33,7 +33,7 @@ test-frontend: ## Run frontend tests
 	cd frontend && npm test
 
 lint: ## Lint backend (ruff, black) and frontend (eslint, prettier)
-	$(BACKEND) ruff check app tests alembic
+	$(BACKEND) ruff check --no-cache app tests alembic
 	$(BACKEND) black --check app tests alembic
 	cd frontend && npm run lint && npm run format:check
 

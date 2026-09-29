@@ -15,6 +15,7 @@ os.environ["ENVIRONMENT"] = "test"
 os.environ["RATE_LIMIT_ENABLED"] = "false"
 os.environ["JWT_SECRET"] = "test-secret-that-is-long-enough-123"
 os.environ["LOG_LEVEL"] = "WARNING"
+os.environ["BCRYPT_ROUNDS"] = "4"  # fast hashing in tests only
 
 import tempfile  # noqa: E402
 from collections.abc import AsyncIterator  # noqa: E402

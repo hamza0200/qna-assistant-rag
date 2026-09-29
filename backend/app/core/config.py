@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(default="change-me-in-env", min_length=16)
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+    # bcrypt work factor: each +1 doubles hashing time. 12 ≈ 250 ms; tests use 4.
+    bcrypt_rounds: int = Field(default=12, ge=4, le=16)
 
     # --- Uploads ---
     upload_dir: str = "./storage/uploads"
