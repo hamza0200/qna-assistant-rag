@@ -29,3 +29,14 @@
 - **Measured**: the 5 sample PDFs (12 pages) became 32 chunks in ~0.5 s total on CPU.
 - **Magic bytes**: `%PDF-` at offset 0. Renaming `malware.exe` to `invoice.pdf` with a spoofed `Content-Type` passes the first two checks but not this one (test in `tests/test_security.py`).
 - **React 19 lint rule `set-state-in-effect`**: fetch in an effect and set state in the promise callback, returning a cancel function so late responses after unmount are ignored.
+
+## Phase 4 — Retrieval + chat
+- **BGE similarity scores are compressed**: measured on the sample docs, a totally off-topic query ("capital of France") still scores ~0.41 and an in-domain but unanswerable one ("stock price") ~0.69, while good matches are ~0.70–0.84. A threshold only removes clearly off-topic queries; it can't detect "unanswerable but on-topic" — the LLM's grounding instructions have to do that. The spec default (0.35) filters nothing for this model.
+- **Dense retrieval misses acronyms**: "What are the RPO and RTO?" didn't retrieve the security-policy chunk that defines them. Embeddings capture meaning, not exact tokens — the argument for hybrid (BM25/full-text + vector) search.
+- **Threshold after ORDER BY, not in WHERE**: `ORDER BY embedding <=> :q LIMIT k` can use the HNSW index; adding `WHERE (embedding <=> :q) < x` generally can't. So filter the top-k in the application.
+- **The LLM isn't called when retrieval is empty** (`rag.answer_stream`): zero cost, zero latency, zero hallucination risk for clearly unanswerable questions.
+- **Streaming lifecycle**: auth/validation/ownership errors are checked *before* the stream starts (proper 4xx JSON); once the 200 and headers are sent, failures can only be reported as an `error` event.
+- **Client disconnect / Stop**: aborting the fetch closes the connection; Starlette cancels the generator, which closes the provider stream (stopping token generation and billing). The partial answer is persisted inside `anyio.CancelScope(shield=True)` — anyio cancellation is *level-triggered*, so any `await` inside a cancelled scope would itself be cancelled without the shield.
+- **React closure bug found in e2e testing**: a `setState(prev => …)` updater referenced a mutable local (`assistantId`) that was reassigned right after the call. Updaters run later, at render time, so they saw the *new* value. Fix: capture into a `const` before calling `setState`. Classic interview story about stale/mutable closures.
+- **`memo` on MessageBubble** so earlier messages don't re-render on every streamed token; stable callbacks via `useCallback`.
+- **Prompt-injection defences in the prompt layer** (`prompts.py`): untrusted-data rule in the system prompt, `<source>` delimiters, neutralising delimiter look-alikes inside chunks, no secrets or tools available to the model.

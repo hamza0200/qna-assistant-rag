@@ -3,7 +3,7 @@
 COMPOSE := docker compose
 BACKEND := $(COMPOSE) exec backend
 
-.PHONY: help up down logs migrate seed test test-backend test-frontend lint eval study-guide
+.PHONY: help up down logs migrate seed test test-backend test-frontend lint eval study-guide lockfile
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-15s %s\n", $$1, $$2}'
@@ -42,3 +42,6 @@ eval: ## Run the evaluation set against the running API and write docs/EVAL_RESU
 
 study-guide: ## Build docs/Interview-Study-Guide.pdf
 	$(BACKEND) python /scripts/build_study_guide.py
+
+lockfile: ## Regenerate frontend/package-lock.json with the same npm as the Docker image
+	docker run --rm -v "$(CURDIR)/frontend:/app" -w /app node:24-alpine npm install --package-lock-only --no-audit --no-fund

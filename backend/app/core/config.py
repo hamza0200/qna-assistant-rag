@@ -48,7 +48,8 @@ class Settings(BaseSettings):
     max_context_chars: int = 12000
 
     # --- LLM ---
-    llm_provider: Literal["anthropic", "openai"] = "anthropic"
+    # "fake" = offline extractive stand-in for local dev/CI without an API key.
+    llm_provider: Literal["anthropic", "openai", "fake"] = "anthropic"
     llm_model: str = "claude-opus-5-5"
     # Anthropic "effort" (thinking depth / token spend). Empty = provider default.
     llm_effort: str = "low"
