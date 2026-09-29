@@ -45,7 +45,8 @@ class Settings(BaseSettings):
     chunk_size: int = 800
     chunk_overlap: int = 150
     top_k: int = 5
-    min_similarity: float = 0.35
+    # Tuned with scripts/eval.py --sweep; see docs/DECISIONS.md (ADR-020).
+    min_similarity: float = 0.45
     history_messages: int = 6
     max_context_chars: int = 12000
 

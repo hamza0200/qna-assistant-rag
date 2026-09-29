@@ -34,7 +34,8 @@ test-frontend: ## Run frontend tests
 
 lint: ## Lint backend (ruff, black) and frontend (eslint, prettier)
 	$(BACKEND) ruff check --no-cache app tests alembic
-	$(BACKEND) black --check app tests alembic
+	$(BACKEND) ruff check --no-cache --config pyproject.toml /scripts
+	$(BACKEND) black --check --config pyproject.toml app tests alembic /scripts
 	cd frontend && npm run lint && npm run format:check
 
 eval: ## Run the evaluation set against the running API and write docs/EVAL_RESULTS.md

@@ -51,3 +51,12 @@
 - **`upgrade-insecure-requests` gotcha**: it would rewrite `http://localhost` API calls to https in local dev, so it's only for production behind TLS.
 - **Test speed**: bcrypt cost is configurable; tests use 4 rounds (vs 12 in prod), taking the suite from ~20 s to ~2.5 s. Each +1 round doubles hashing time.
 - **Accessibility caught by tests**: `aria-label` on a plain `div` isn't announced by screen readers — it needs a role (`role="group"`). Testing Library's role queries surface these issues.
+
+## Phase 6 — Seed + eval
+- **Retrieval hit-rate 21/21 (100%)** at document and page level with `TOP_K=5`, `MIN_SIMILARITY=0.45` (see `docs/EVAL_RESULTS.md`).
+- **Threshold tuning story (ADR-020)**: in-domain answerable questions scored 0.508–0.84 top-1; off-topic probes 0.416–0.541 — overlapping distributions, so a threshold can only remove clearly off-topic questions. The rest is the prompt's job. Great answer to "how did you pick the threshold?": *measured, on a labelled set, and I know its limits*.
+- **Unanswerable ≠ irrelevant**: "What is Orbitra's stock price?" retrieves pricing chunks at ~0.69 — lexically/semantically close, but they don't contain the answer. Only the LLM, instructed to refuse, can tell.
+- **Test your grader**: the eval scorer is unit-tested; every reference answer is run through it (which surfaced a quirk in the question file: Q13's reference answer lacks its own key fact).
+- **Eval split**: retrieval measured in-process (free, deterministic, no LLM); answers measured end-to-end through the HTTP API (tests the real system, costs tokens).
+- **Seed via the public API**, not direct DB inserts: exercises the same validation and ingestion path as users, and is idempotent (skips existing user/docs).
+- **asyncio gotcha**: a pooled async engine is bound to the event loop that created its connections; calling `asyncio.run()` repeatedly requires `engine.dispose()` between runs.

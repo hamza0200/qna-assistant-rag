@@ -136,3 +136,21 @@ Each entry: **Context / Decision / Alternatives considered / Trade-offs**. Entri
 **Decision.** The API sends `default-src 'none'` CSP, `X-Frame-Options: DENY`, `nosniff`, `no-referrer` (it only serves JSON/SSE; `/docs` is exempt from the CSP and disabled in production). The frontend follows Next's no-nonce CSP recipe with `connect-src` limited to our API origin.
 **Alternatives considered.** Nonce-based CSP via Next's `proxy.ts` (stricter `script-src`, but forces dynamic rendering of every page).
 **Trade-offs.** `'unsafe-inline'` scripts are still allowed on the frontend; a nonce-based CSP would close that at the cost of static optimisation.
+
+## ADR-020 — Similarity threshold `MIN_SIMILARITY = 0.45`, `TOP_K = 5` (tuned with the eval)
+
+**Context.** The spec suggests 0.35 and asks for the value to be tuned on the eval set. The threshold decides when the LLM is skipped entirely ("not found" without a model call).
+**Decision.** `scripts/eval.py --sweep` measured retrieval hit-rate for TOP_K ∈ {3, 5, 8} × MIN_SIMILARITY ∈ {0.35 … 0.6}, and a separate probe compared top-1 scores of answerable vs off-topic questions with `bge-small-en-v1.5`:
+- Answerable questions: top-1 between **0.508** (Q7, "RPO and RTO" — acronyms) and 0.84.
+- Off-topic probes ("capital of France", "sourdough bread", "World Cup"…): top-1 between **0.416 and 0.541**.
+- Hit-rate is 21/21 up to 0.45, 20/21 at 0.5, 19/21 at 0.6; TOP_K 3/5/8 made no difference on this corpus.
+The distributions overlap, so no threshold separates them. 0.45 keeps every answerable question (margin 0.058) and short-circuits the clearly off-topic ones (4 of 10 probes) without an LLM call; the rest are refused by the grounded prompt. TOP_K stays 5 to give multi-document questions room.
+**Alternatives considered.** 0.35 (filters nothing with this model); ~0.52 (drops a real question); a reranker score threshold (cross-encoders give much better-calibrated relevance scores).
+**Trade-offs.** Favours recall: a false "not found" is worse than an LLM call that ends in a refusal. The threshold is model-specific and must be re-tuned if the embedding model changes. Two in-domain refusal questions (Q20 stock price, Q21 London office) score like answerable ones (~0.69–0.74) — only the prompt can handle those.
+
+## ADR-021 — Eval design: retrieval in-process, answers over HTTP, string-match grading
+
+**Context.** §13 asks for retrieval hit-rate and answer accuracy against `test-questions.md`.
+**Decision.** Retrieval is scored by calling `rag.retrieve_for_turn` (the chat route's own code path, including follow-up handling) as the demo user — cheap, deterministic, no API key. Answers are scored by streaming real `/api/chat` responses (so the whole system is under test) and checking key facts case-insensitively (word boundaries for short facts, thousands separators optional), refusal phrasing for refusal questions, and forbidden strings plus an "is USD 5" pattern for the injection question. The scorer has its own unit tests (`backend/tests/test_eval_scoring.py`), including "every reference answer passes its own scoring".
+**Alternatives considered.** LLM-as-judge (better at paraphrase, but costs money, is itself non-deterministic and needs its own validation); exact-match answers.
+**Trade-offs.** String matching can't credit a correct paraphrase ("two hours" vs "2 hours") and can be fooled by an answer that mentions a fact while getting it wrong; it is transparent and free. One quirk found: Q13's reference answer never literally contains its key fact "Bahrain".
