@@ -27,7 +27,7 @@ seed: ## Create the demo user and ingest every PDF in sample-docs/
 test: test-backend test-frontend ## Run all tests
 
 test-backend: ## Run backend tests (inside the backend container)
-	$(BACKEND) pytest -q
+	$(BACKEND) pytest -q -p no:cacheprovider
 
 test-frontend: ## Run frontend tests
 	cd frontend && npm test

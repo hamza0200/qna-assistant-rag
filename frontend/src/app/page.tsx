@@ -1,7 +1,18 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+import { useAuth } from "@/lib/auth";
+
+/** Entry point: send signed-in users to chat, everyone else to login. */
 export default function Home() {
-  return (
-    <main className="flex min-h-screen items-center justify-center">
-      <h1 className="text-2xl font-semibold">DocMind AI</h1>
-    </main>
-  );
+  const { ready, token } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (ready) router.replace(token ? "/chat" : "/login");
+  }, [ready, token, router]);
+
+  return <div className="grid min-h-dvh place-items-center text-sm text-muted">Loading…</div>;
 }
