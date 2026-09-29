@@ -1,0 +1,18 @@
+# Runtime dependencies (pinned for reproducible builds).
+fastapi==0.142.0
+uvicorn[standard]==0.54.0
+sqlalchemy[asyncio]==2.1.1
+asyncpg==0.31.0          # async Postgres driver used by SQLAlchemy
+alembic==1.20.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+email-validator>=2.2     # enables pydantic's EmailStr
+pgvector==0.5.0          # SQLAlchemy Vector column type for the pgvector extension
+fastembed==0.8.1
+pypdf==6.19.0
+bcrypt==5.0.0
+pyjwt==2.15.1
+slowapi==0.1.10
+python-multipart==0.0.32 # multipart/form-data parsing for uploads
+anthropic==1.9.0
+openai==3.21.0

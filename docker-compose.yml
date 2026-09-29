@@ -1,0 +1,59 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-docmind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-docmind}
+      POSTGRES_DB: ${POSTGRES_DB:-docmind}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    env_file: .env
+    environment:
+      # Inside the compose network the DB is reachable as "db" on 5432.
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-docmind}:${POSTGRES_PASSWORD:-docmind}@db:5432/${POSTGRES_DB:-docmind}
+      TEST_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-docmind}:${POSTGRES_PASSWORD:-docmind}@db:5432/${POSTGRES_DB:-docmind}_test
+      UPLOAD_DIR: /app/storage/uploads
+      API_BASE_URL: http://localhost:8000
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - uploads:/app/storage/uploads
+      # Read-only mounts so `make seed` / `make eval` can run inside this container.
+      - ./scripts:/scripts:ro
+      - ./sample-docs:/sample-docs:ro
+      - ./docs:/docs
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Browser-facing URL of the backend (inlined at build time).
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  uploads:

@@ -1,0 +1,26 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+backend/storage/
+
+# Node
+node_modules/
+.next/
+coverage/
+*.tsbuildinfo
+
+# Study guide build artifacts (the final PDF itself is committed)
+docs/study-guide/_build/
